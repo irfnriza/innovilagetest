@@ -3,3 +3,5 @@ fastapi
 starlette
 uvicorn
 pydantic
+logging
+datetime
