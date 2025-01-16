@@ -2,3 +2,4 @@ streamlit
 fastapi
 starlette
 uvicorn
+pydantic
