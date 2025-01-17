@@ -23,23 +23,32 @@ if "last_update" not in st.session_state:
     st.session_state.last_update = None
 if "connection_status" not in st.session_state:
     st.session_state.connection_status = False
+if "debug_log" not in st.session_state:
+    st.session_state.debug_log = []
 
 def on_connect(client, userdata, flags, rc):
     if rc == 0:
         st.session_state.connection_status = True
-        print("Connected to MQTT Broker!")
+        log_message("Connected to MQTT Broker!")
         client.subscribe(TOPIC_DATA)
     else:
         st.session_state.connection_status = False
-        print(f"Failed to connect, return code {rc}")
+        log_message(f"Failed to connect, return code {rc}")
 
 def on_message(client, userdata, msg):
     try:
         payload = json.loads(msg.payload.decode())
         st.session_state.sensor_data = payload
         st.session_state.last_update = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        log_message(f"Message received on topic {msg.topic}: {payload}")
     except Exception as e:
-        print(f"Error processing message: {e}")
+        log_message(f"Error processing message: {e}")
+
+def log_message(message):
+    """Add a log message to the debug log."""
+    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    st.session_state.debug_log.append(f"{timestamp} - {message}")
+    print(f"{timestamp} - {message}")  # Also print to console for additional debugging
 
 def init_mqtt():
     client = mqtt.Client()
@@ -60,7 +69,7 @@ def init_mqtt():
         client.loop_start()
         return client
     except Exception as e:
-        print(f"Error connecting to MQTT broker: {e}")
+        log_message(f"Error connecting to MQTT broker: {e}")
         return None
 
 # Streamlit UI
@@ -127,6 +136,7 @@ with col1:
         st.line_chart(chart_data, x='time', y='flow_rate')
     else:
         st.info("Waiting for data from ESP32...")
+        log_message("No sensor data received yet.")
 
 with col2:
     st.subheader("🎛️ Control Panel")
@@ -143,22 +153,26 @@ with col2:
         if st.button("Turn ON", type="primary", use_container_width=True):
             if st.session_state.mqtt_client:
                 st.session_state.mqtt_client.publish(TOPIC_COMMAND, "ON")
+                log_message("Command sent: Turn ON")
                 st.success("Command sent: Turn ON")
             else:
+                log_message("MQTT not connected!")
                 st.error("MQTT not connected!")
     
     with col6:
         if st.button("Turn OFF", type="secondary", use_container_width=True):
             if st.session_state.mqtt_client:
                 st.session_state.mqtt_client.publish(TOPIC_COMMAND, "OFF")
+                log_message("Command sent: Turn OFF")
                 st.success("Command sent: Turn OFF")
             else:
+                log_message("MQTT not connected!")
                 st.error("MQTT not connected!")
 
 # Debug section
-with st.expander("Debug Information", expanded=False):
+with st.expander("Debug Information", expanded=True):
     st.subheader("📝 Debug Log")
-    st.json(st.session_state.sensor_data)
-    if st.button("Clear History"):
-        st.session_state.history = []
-        st.success("History cleared!")
+    st.text("\n".join(st.session_state.debug_log))
+    if st.button("Clear Debug Log"):
+        st.session_state.debug_log = []
+        st.success("Debug log cleared.")
