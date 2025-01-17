@@ -1,7 +1,2 @@
 streamlit
-fastapi
-starlette
-uvicorn
-pydantic
-logging
-datetime
+paho-mqtt
